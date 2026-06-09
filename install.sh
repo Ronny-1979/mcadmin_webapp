@@ -173,6 +173,15 @@ install_webapp() {
     (cd "${WEBAPP_DIR}/frontend" && npm run build) \
         || { warn "Frontend build fehlgeschlagen — Details: $LOG_FILE"; }
 
+    # Build-Ergebnis prüfen
+    if [[ ! -f "${WEBAPP_DIR}/frontend/dist/index.html" ]]; then
+        warn "ACHTUNG: Frontend-Build fehlgeschlagen! dist/index.html nicht gefunden."
+        warn "Die Webapp wird eine weiße Seite zeigen. Bitte manuell prüfen:"
+        warn "  cd ${WEBAPP_DIR}/frontend && npm run build"
+    else
+        ok "Frontend-Build erfolgreich (dist/index.html vorhanden)"
+    fi
+
     # Ownership erst nach npm-Operationen setzen
     chown -R "${WEB_USER}:${WEB_USER}" "${WEBAPP_DIR}" 2>/dev/null || true
     mkdir -p /tmp/mc-webapp-uploads
@@ -383,6 +392,11 @@ if [ "$MODE" = "update" ]; then
         [ -f "$CONFIG_JS_BAK" ] && cp "$CONFIG_JS_BAK" "${WEBAPP_DIR}/backend/config.js" && rm -f "$CONFIG_JS_BAK"
         (cd "${WEBAPP_DIR}/backend"  && npm install --omit=dev --silent) || warn "Backend npm install fehlgeschlagen"
         (cd "${WEBAPP_DIR}/frontend" && npm install --silent && npm run build)  || warn "Frontend build fehlgeschlagen"
+        if [[ ! -f "${WEBAPP_DIR}/frontend/dist/index.html" ]]; then
+            warn "ACHTUNG: Frontend-Build fehlgeschlagen! dist/index.html nicht gefunden."
+        else
+            ok "Frontend-Build erfolgreich"
+        fi
         chown -R "${WEB_USER}:${WEB_USER}" "${WEBAPP_DIR}" 2>/dev/null || true
         systemctl restart "${WEBAPP_SERVICE}" 2>/dev/null || true
         ok "mc-webapp aktualisiert und neu gestartet"
