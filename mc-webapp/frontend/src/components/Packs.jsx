@@ -12,9 +12,10 @@ export default function Packs() {
   const [worldPacks,  setWorldPacks]  = useState({ resource:[], behavior:[] });
   const [worldTab,    setWorldTab]    = useState('resource');
   const [section,     setSection]     = useState('global'); // 'global' | 'world'
-  const fileRef     = useRef();
-  const supplyRef   = useRef();
-  const replaceRef  = useRef();
+  const fileRef       = useRef();
+  const supplyRef     = useRef();
+  const replaceRef    = useRef();
+  const worldPackRef  = useRef();
   const [replacingPack, setReplacingPack] = useState(null);
   const [supplyingPack, setSupplyingPack] = useState(null);
   const { toast, ToastContainer } = useToast();
@@ -173,6 +174,22 @@ export default function Packs() {
                   </button>
                 ))}
               </div>
+              <div className="card" style={{ marginBottom:18 }}>
+                <div className="card-title">Pack für „{activeWorld}" hochladen</div>
+                <div className="drop-zone" style={{ padding:'12px 8px' }} onClick={() => worldPackRef.current?.click()}>
+                  <UploadCloud size={20} style={{ margin:'0 auto 6px', display:'block' }} />
+                  .mcpack / .mcaddon / .zip hochladen — wird direkt für diese Welt aktiviert
+                  <input ref={worldPackRef} type="file" accept=".mcpack,.mcaddon,.zip" hidden onChange={async e => {
+                    const file = e.target.files[0]; if (!file) return;
+                    const fd = new FormData(); fd.append('pack', file);
+                    toast('Pack wird hochgeladen…', 'info');
+                    const r = await upload(`/api/worlds/${encodeURIComponent(activeWorld)}/packs/upload`, fd);
+                    toast(r?.success ? 'Pack installiert und aktiviert' : (r?.error || 'Fehler'), r?.success ? 'success' : 'error');
+                    loadWorldPacks(activeWorld); loadGlobal();
+                  }} />
+                </div>
+              </div>
+
               <div className="card">
                 <div className="card-title">Packs für „{activeWorld}"</div>
                 {wPacks.length === 0
