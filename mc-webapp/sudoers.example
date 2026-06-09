@@ -1,0 +1,14 @@
+# /etc/sudoers.d/mc-webapp
+# Sudo-Berechtigungen für mc-webapp (Node.js Panel)
+# Installiert von install.sh nach /etc/sudoers.d/mc-webapp
+#
+# Falls der Node.js-Prozess nicht als www-data läuft, Benutzernamen anpassen.
+
+# Server-Steuerung via systemctl
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start minecraft-bedrock
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop minecraft-bedrock
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart minecraft-bedrock
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl status minecraft-bedrock
+
+# Backup-Wiederherstellung (tar zum Entpacken in MC-Verzeichnis)
+www-data ALL=(ALL) NOPASSWD: /bin/tar -xzf /var/www/html/mcadmin/backups/*.tar.gz -C /opt/minecraft-bedrock
