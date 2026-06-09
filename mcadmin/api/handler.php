@@ -25,7 +25,10 @@ header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
 // ── Auth-Check ────────────────────────────────────────────────
-if (empty($_SESSION['authenticated'])) {
+$_internalSecret = load_settings()['php_bridge_secret'] ?? '';
+$_providedSecret = $_SERVER['HTTP_X_MCADMIN_SECRET'] ?? '';
+$_isInternalCall = ($_internalSecret !== '' && hash_equals($_internalSecret, $_providedSecret));
+if (!$_isInternalCall && empty($_SESSION['authenticated'])) {
     http_response_code(401);
     echo json_encode(['success'=>false,'message'=>'Nicht authentifiziert']); exit;
 }
