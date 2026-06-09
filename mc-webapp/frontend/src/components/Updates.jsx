@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
 import { get, post } from '../utils.js';
-import { useToast } from '../useToast.js';
+import { useToast } from '../useToast.jsx';
 
 function UpdateCard({ title, installed, available, updating, onCheck, onUpdate, log }) {
   const hasUpdate = available && available !== installed && available !== 'unbekannt';
