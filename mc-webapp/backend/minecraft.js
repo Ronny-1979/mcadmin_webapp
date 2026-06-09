@@ -403,6 +403,17 @@ function _applyPacksJson(worldName, state) {
   }
 }
 
+export function removePackFromWorld(worldName, uuid, type) {
+  if (!['behavior','resource'].includes(type)) return { success: false, error: 'Ungültiger Typ' };
+  const state = readJson(panel.stateFile, {});
+  if (!state.world_packs?.[worldName]) return { success: false, error: 'Welt nicht gefunden' };
+  const uuidLow = uuid.toLowerCase();
+  state.world_packs[worldName][type] = (state.world_packs[worldName][type]||[]).filter(r=>(r.pack_id||r.uuid||'').toLowerCase()!==uuidLow);
+  writeJsonAtomic(panel.stateFile, state);
+  _applyPacksJson(worldName, state);
+  return { success: true };
+}
+
 export function deletePack(type, nameOrUuid) {
   const dir = type === 'behavior' ? mc.behaviorDir : mc.resourceDir;
   let packDir = path.join(dir, nameOrUuid);
@@ -571,8 +582,9 @@ export function createBackup(label='') {
   const dest = path.join(panel.backupDir, name);
   try {
     execSync(`tar -czf "${dest}" -C "${path.dirname(mc.serverDir)}" "${path.basename(mc.serverDir)}"`, { timeout: 300000 });
+    const maxCount = loadPanelSettings().backup_max_count || panel.maxBackups;
     const all = listBackups();
-    if (all.length > panel.maxBackups) all.slice(panel.maxBackups).forEach(b=>fs.unlinkSync(path.join(panel.backupDir,b.name)));
+    if (all.length > maxCount) all.slice(maxCount).forEach(b=>fs.unlinkSync(path.join(panel.backupDir,b.name)));
     return { success: true, name };
   } catch (e) { return { success: false, error: e.message }; }
 }

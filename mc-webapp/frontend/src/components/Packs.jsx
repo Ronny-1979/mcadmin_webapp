@@ -12,9 +12,10 @@ export default function Packs() {
   const [worldPacks,  setWorldPacks]  = useState({ resource:[], behavior:[] });
   const [worldTab,    setWorldTab]    = useState('resource');
   const [section,     setSection]     = useState('global'); // 'global' | 'world'
-  const fileRef     = useRef();
-  const supplyRef   = useRef();
-  const replaceRef  = useRef();
+  const fileRef       = useRef();
+  const supplyRef     = useRef();
+  const replaceRef    = useRef();
+  const worldPackRef  = useRef();
   const [replacingPack, setReplacingPack] = useState(null);
   const [supplyingPack, setSupplyingPack] = useState(null);
   const { toast, ToastContainer } = useToast();
@@ -61,8 +62,8 @@ export default function Packs() {
     if (!file || !replacingPack) return;
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('type', tab);
-    fd.append('oldName', replacingPack);
+    fd.append('old_uuid', replacingPack.uuid);
+    fd.append('old_type', replacingPack.type);
     toast('Pack wird ersetzt…', 'info');
     const r = await upload('/api/packs/replace', fd);
     toast(r?.success ? 'Pack ersetzt' : (r?.error || 'Fehler'), r?.success ? 'success' : 'error');
@@ -135,7 +136,7 @@ export default function Packs() {
                         <td>
                           <div style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
                             <button className="btn btn-ghost btn-sm" title="Ersetzen"
-                              onClick={() => { setReplacingPack(p.name); setTimeout(() => replaceRef.current?.click(), 50); }}>
+                              onClick={() => { setReplacingPack({uuid: p.uuid, type: tab}); setTimeout(() => replaceRef.current?.click(), 50); }}>
                               <RefreshCw size={12} />
                             </button>
                             <button className="btn btn-red btn-sm" onClick={() => deletePack(tab, p.name)}>
@@ -173,6 +174,22 @@ export default function Packs() {
                   </button>
                 ))}
               </div>
+              <div className="card" style={{ marginBottom:18 }}>
+                <div className="card-title">Pack für „{activeWorld}" hochladen</div>
+                <div className="drop-zone" style={{ padding:'12px 8px' }} onClick={() => worldPackRef.current?.click()}>
+                  <UploadCloud size={20} style={{ margin:'0 auto 6px', display:'block' }} />
+                  .mcpack / .mcaddon / .zip hochladen — wird direkt für diese Welt aktiviert
+                  <input ref={worldPackRef} type="file" accept=".mcpack,.mcaddon,.zip" hidden onChange={async e => {
+                    const file = e.target.files[0]; if (!file) return;
+                    const fd = new FormData(); fd.append('pack', file);
+                    toast('Pack wird hochgeladen…', 'info');
+                    const r = await upload(`/api/worlds/${encodeURIComponent(activeWorld)}/packs/upload`, fd);
+                    toast(r?.success ? 'Pack installiert und aktiviert' : (r?.error || 'Fehler'), r?.success ? 'success' : 'error');
+                    loadWorldPacks(activeWorld); loadGlobal();
+                  }} />
+                </div>
+              </div>
+
               <div className="card">
                 <div className="card-title">Packs für „{activeWorld}"</div>
                 {wPacks.length === 0
@@ -193,12 +210,22 @@ export default function Packs() {
                                 : <span className="badge badge-green">OK</span>}
                             </td>
                             <td>
-                              <button className="btn btn-ghost btn-sm" disabled={p.missing}
-                                onClick={() => togglePack(p.uuid, worldTab, p.enabled)}>
-                                {p.enabled
-                                  ? <ToggleRight size={18} color="var(--accent)" />
-                                  : <ToggleLeft size={18} color="var(--text2)" />}
-                              </button>
+                              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                <button className="btn btn-ghost btn-sm" disabled={p.missing}
+                                  onClick={() => togglePack(p.uuid, worldTab, p.enabled)}>
+                                  {p.enabled
+                                    ? <ToggleRight size={18} color="var(--accent)" />
+                                    : <ToggleLeft size={18} color="var(--text2)" />}
+                                </button>
+                                <button className="btn btn-red btn-sm" title="Aus Welt entfernen"
+                                  onClick={async () => {
+                                    const r = await post(`/api/worlds/${encodeURIComponent(activeWorld)}/packs/remove`, { uuid: p.uuid, type: worldTab });
+                                    toast(r?.success ? 'Pack aus Welt entfernt' : (r?.error || 'Fehler'), r?.success ? 'success' : 'error');
+                                    loadWorldPacks(activeWorld);
+                                  }}>
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

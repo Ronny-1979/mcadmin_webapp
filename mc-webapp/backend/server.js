@@ -218,9 +218,9 @@ app.get('/api/backups/download/:name', requireAuth, (req, res) => {
 app.get('/api/updates/mc', requireAuth, async (req, res) => {
   try {
     const r = await mc.checkMcVersion(!!req.query.force);
-    res.json(r);
+    res.json({ installed: r.current, available: r.latest, update_available: r.update_available, error: r.error });
   } catch (e) {
-    res.json({ current: mc.getVersion(), latest: 'unbekannt', update_available: false, error: e.message });
+    res.json({ installed: mc.getVersion(), available: 'unbekannt', update_available: false, error: e.message });
   }
 });
 
@@ -235,8 +235,12 @@ app.get('/api/updates/mc/status', requireAuth, async (req, res) => {
 });
 
 app.get('/api/updates/panel', requireAuth, async (req, res) => {
-  try { res.json(await phpAction('check_panel_update', { force: req.query.force || '0' })); }
-  catch (e) { res.json({ current: 'unbekannt', latest: 'unbekannt', update_available: false, error: e.message }); }
+  try {
+    const r = await phpAction('check_panel_update', { force: req.query.force || '0' });
+    res.json({ installed: r.current, available: r.latest, update_available: r.update_available, ...r });
+  } catch (e) {
+    res.json({ installed: 'unbekannt', available: 'unbekannt', update_available: false, error: e.message });
+  }
 });
 
 app.post('/api/updates/panel/start', requireAuth, async (req, res) => {
@@ -268,16 +272,56 @@ app.get('/api/settings', requireAuth, (req, res) => {
 
 app.post('/api/settings', requireAuth, async (req, res) => {
   const data = { ...req.body };
-  delete data.php_bridge_secret; // Niemals überschreiben lassen
+  delete data.php_bridge_secret;
   if (data._new_pass) {
+    if (!data._old_pass) return res.status(400).json({ success: false, error: 'Aktuelles Passwort erforderlich' });
+    const { verifyCredentials } = await import('./auth.js');
+    const valid = await verifyCredentials(req.user.user, data._old_pass);
+    if (!valid) return res.status(400).json({ success: false, error: 'Aktuelles Passwort falsch' });
+    if (data._new_pass.length < 6) return res.status(400).json({ success: false, error: 'Passwort muss mindestens 6 Zeichen haben' });
+    if (data._new_pass !== data._confirm_pass) return res.status(400).json({ success: false, error: 'Passwörter stimmen nicht überein' });
     const { default: bcrypt } = await import('bcrypt');
     data.admin_pass_hash = await bcrypt.hash(data._new_pass, 12);
-    delete data._new_pass;
+    delete data._new_pass; delete data._old_pass; delete data._confirm_pass;
   }
-  // Bestehende Settings laden und mergen (damit php_bridge_secret erhalten bleibt)
+  if (data.admin_user !== undefined && data.admin_user.length < 3)
+    return res.status(400).json({ success: false, error: 'Benutzername muss mindestens 3 Zeichen haben' });
   const existing = mc.loadPanelSettings();
-  res.json(mc.savePanelSettings({ ...existing, ...data }));
+  const result = mc.savePanelSettings({ ...existing, ...data });
   invalidateSecretCache();
+  res.json(result);
+});
+
+// ── Discord Test ──────────────────────────────────────────────
+app.post('/api/settings/test-discord', requireAuth, async (req, res) => {
+  try {
+    const r = await phpAction('test_discord', { webhook: req.body.webhook || '' });
+    res.json(r);
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ── Backup-Limit ──────────────────────────────────────────────
+app.post('/api/settings/backup-max-count', requireAuth, (req, res) => {
+  const allowed = [5, 10, 15, 20, 25, 30];
+  const count = parseInt(req.body.count);
+  if (!allowed.includes(count)) return res.status(400).json({ success: false, error: 'Ungültiger Wert' });
+  const s = mc.loadPanelSettings();
+  s.backup_max_count = count;
+  res.json(mc.savePanelSettings(s));
+});
+
+// ── Update-Check jetzt ausführen ──────────────────────────────
+app.post('/api/updates/check-now', requireAuth, async (req, res) => {
+  try { res.json(await phpAction('run_update_check_now')); }
+  catch (e) { res.json({ success: false, error: e.message }); }
+});
+
+// ── Pack aus Welt entfernen ───────────────────────────────────
+app.post('/api/worlds/:name/packs/remove', requireAuth, (req, res) => {
+  const { uuid, type } = req.body;
+  res.json(mc.removePackFromWorld(req.params.name, uuid, type));
 });
 
 // ── SPA-Fallback ──────────────────────────────────────────────
