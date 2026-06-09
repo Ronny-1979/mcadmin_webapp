@@ -162,16 +162,21 @@ install_webapp() {
         ok "JWT-Secret generiert"
     fi
 
-    chown -R "${WEB_USER}:${WEB_USER}" "${WEBAPP_DIR}"
-
     info "Installiere Backend-Pakete..."
-    (cd "${WEBAPP_DIR}/backend" && sudo -u "${WEB_USER}" npm install --omit=dev --silent 2>>"$LOG_FILE" || npm install --omit=dev --silent 2>>"$LOG_FILE")
-    info "Baue Frontend..."
-    (cd "${WEBAPP_DIR}/frontend" && sudo -u "${WEB_USER}" npm install --silent 2>>"$LOG_FILE" || npm install --silent 2>>"$LOG_FILE")
-    (cd "${WEBAPP_DIR}/frontend" && sudo -u "${WEB_USER}" npm run build 2>>"$LOG_FILE" || npm run build 2>>"$LOG_FILE")
+    # Als root ausführen, Ownership danach setzen — vermeidet sudo-Berechtigungs-Konflikte
+    (cd "${WEBAPP_DIR}/backend"  && npm install --omit=dev --silent) \
+        || { warn "Backend npm install fehlgeschlagen — Details: $LOG_FILE"; }
 
+    info "Baue Frontend..."
+    (cd "${WEBAPP_DIR}/frontend" && npm install --silent) \
+        || { warn "Frontend npm install fehlgeschlagen — Details: $LOG_FILE"; }
+    (cd "${WEBAPP_DIR}/frontend" && npm run build) \
+        || { warn "Frontend build fehlgeschlagen — Details: $LOG_FILE"; }
+
+    # Ownership erst nach npm-Operationen setzen
+    chown -R "${WEB_USER}:${WEB_USER}" "${WEBAPP_DIR}" 2>/dev/null || true
     mkdir -p /tmp/mc-webapp-uploads
-    ok "mc-webapp Dateien installiert und Frontend gebaut"
+    ok "mc-webapp installiert und Frontend gebaut"
 }
 
 # mc-webapp systemd-Service einrichten
@@ -376,9 +381,9 @@ if [ "$MODE" = "update" ]; then
         [ -f "${WEBAPP_DIR}/backend/config.js" ] && cp "${WEBAPP_DIR}/backend/config.js" "$CONFIG_JS_BAK"
         cp -r "${EXTRACTED}/mc-webapp/." "${WEBAPP_DIR}/"
         [ -f "$CONFIG_JS_BAK" ] && cp "$CONFIG_JS_BAK" "${WEBAPP_DIR}/backend/config.js" && rm -f "$CONFIG_JS_BAK"
-        chown -R "${WEB_USER}:${WEB_USER}" "${WEBAPP_DIR}"
-        (cd "${WEBAPP_DIR}/backend"  && npm install --omit=dev --silent >>"$LOG_FILE" 2>&1) || true
-        (cd "${WEBAPP_DIR}/frontend" && npm install --silent >>"$LOG_FILE" 2>&1 && npm run build >>"$LOG_FILE" 2>&1) || true
+        (cd "${WEBAPP_DIR}/backend"  && npm install --omit=dev --silent) || warn "Backend npm install fehlgeschlagen"
+        (cd "${WEBAPP_DIR}/frontend" && npm install --silent && npm run build)  || warn "Frontend build fehlgeschlagen"
+        chown -R "${WEB_USER}:${WEB_USER}" "${WEBAPP_DIR}" 2>/dev/null || true
         systemctl restart "${WEBAPP_SERVICE}" 2>/dev/null || true
         ok "mc-webapp aktualisiert und neu gestartet"
     else
