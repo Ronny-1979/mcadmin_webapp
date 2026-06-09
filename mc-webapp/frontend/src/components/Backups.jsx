@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { HardDrive, Plus, Trash2, Download, RefreshCw, UploadCloud, RotateCcw } from 'lucide-react';
 import { get, post, del, upload, formatBytes, formatDate } from '../utils.js';
-import { useToast } from '../useToast.js';
+import { useToast } from '../useToast.jsx';
 
 export default function Backups() {
   const [backups,   setBackups]   = useState([]);

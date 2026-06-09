@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Save } from 'lucide-react';
 import { get, post } from '../utils.js';
-import { useToast } from '../useToast.js';
+import { useToast } from '../useToast.jsx';
 
 const PROP_GROUPS = {
   'Allgemein': ['server-name', 'gamemode', 'difficulty', 'max-players', 'level-name', 'level-seed'],

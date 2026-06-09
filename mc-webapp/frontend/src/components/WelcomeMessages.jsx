@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, Save } from 'lucide-react';
 import { get, post } from '../utils.js';
-import { useToast } from '../useToast.js';
+import { useToast } from '../useToast.jsx';
 
 const PLACEHOLDERS = ['{player}', '{world}', '{server}'];
 

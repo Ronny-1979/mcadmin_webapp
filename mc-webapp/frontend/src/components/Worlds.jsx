@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Globe, Trash2, UploadCloud, CheckCircle, Plus, Edit2, Settings, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { get, post, del, upload } from '../utils.js';
-import { useToast } from '../useToast.js';
+import { useToast } from '../useToast.jsx';
 
 function Modal({ title, onClose, children }) {
   return (

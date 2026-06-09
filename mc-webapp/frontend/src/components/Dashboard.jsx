@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Play, Square, RotateCcw, Users, Clock, Box, ShieldCheck, ShieldOff, UserX, UserPlus } from 'lucide-react';
 import { get, post, formatUptime } from '../utils.js';
-import { useToast } from '../useToast.js';
+import { useToast } from '../useToast.jsx';
 
 export default function Dashboard() {
   const [status, setStatus] = useState(null);

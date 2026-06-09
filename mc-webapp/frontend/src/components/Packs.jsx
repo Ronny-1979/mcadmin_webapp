@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Package, Trash2, UploadCloud, ToggleLeft, ToggleRight, RefreshCw } from 'lucide-react';
 import { get, del, upload, post } from '../utils.js';
-import { useToast } from '../useToast.js';
+import { useToast } from '../useToast.jsx';
 
 export default function Packs() {
   const [behavior,    setBehavior]    = useState([]);

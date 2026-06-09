@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, ShieldOff, UserX, UserPlus, RefreshCw } from 'lucide-react';
 import { get, post } from '../utils.js';
-import { useToast } from '../useToast.js';
+import { useToast } from '../useToast.jsx';
 
 export default function Players() {
   const [whitelist, setWhitelist]   = useState([]);
