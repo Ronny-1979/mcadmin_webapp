@@ -1,0 +1,12 @@
+# Laufzeit- und Benutzerdaten — nicht ins Repository
+mcadmin/mcadmin_state.json
+mcadmin/mcadmin_settings.json
+mcadmin/version_cache.json
+mcadmin/panel_version_cache.json
+mcadmin/.mcadmin_version
+mcadmin/backups/
+mcadmin/uploads/
+
+# Temporäre Dateien
+*.log
+*.tmp
