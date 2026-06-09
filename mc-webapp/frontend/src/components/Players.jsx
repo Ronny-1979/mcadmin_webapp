@@ -38,7 +38,7 @@ export default function Players() {
   }
 
   async function kick(name) {
-    const r = await post('/api/console/send', { cmd: `kick ${name}` });
+    await post('/api/players/kick', { name });
     toast(`${name} gekickt`, 'success');
     setTimeout(load, 1000);
   }
@@ -70,13 +70,24 @@ export default function Players() {
         <div className="card-title">Online ({online.length})</div>
         {online.length === 0
           ? <span style={{ color: 'var(--text2)' }}>Niemand online</span>
-          : online.map(p => (
-            <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-              <span className="dot dot-green" />
-              <span style={{ flex: 1 }}>{p}</span>
-              <button className="btn btn-red btn-sm" onClick={() => kick(p)}><UserX size={12} /> Kick</button>
-            </div>
-          ))
+          : online.map(player => {
+              const name = typeof player === 'string' ? player : player.name;
+              const isOp = player?.is_op;
+              const isWl = player?.is_whitelisted;
+              return (
+                <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                  <span className="dot dot-green" />
+                  <span style={{ flex: 1, fontWeight: 600 }}>{name}</span>
+                  {isOp && <span className="badge badge-yellow" title="Operator">OP</span>}
+                  {isWl && <span className="badge badge-green" title="Whitelist">WL</span>}
+                  <button className="btn btn-ghost btn-sm" title={isOp ? 'OP entfernen' : 'OP geben'}
+                    onClick={() => isOp ? deop(null, name) : op(null, name)}>
+                    {isOp ? <ShieldOff size={12} /> : <Shield size={12} />}
+                  </button>
+                  <button className="btn btn-red btn-sm" onClick={() => kick(name)}><UserX size={12} /> Kick</button>
+                </div>
+              );
+            })
         }
       </div>
 

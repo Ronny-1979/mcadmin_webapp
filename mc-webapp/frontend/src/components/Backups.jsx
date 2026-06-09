@@ -12,11 +12,14 @@ export default function Backups() {
   const fileRef = useRef();
   const { toast, ToastContainer } = useToast();
 
+  const [maxCount, setMaxCount] = useState(20);
+
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const r = await get('/api/backups');
-    if (r) setBackups(r);
+    const [b, s] = await Promise.all([get('/api/backups'), get('/api/settings')]);
+    if (b) setBackups(b);
+    if (s?.backup_max_count) setMaxCount(s.backup_max_count);
   }
 
   async function create() {
@@ -97,7 +100,7 @@ export default function Backups() {
       </div>
 
       <div className="card">
-        <div className="card-title">Vorhandene Backups ({backups.length} / 20)</div>
+        <div className="card-title">Vorhandene Backups ({backups.length} / {maxCount})</div>
         {backups.length === 0
           ? <span style={{ color:'var(--text2)' }}>Keine Backups vorhanden</span>
           : (

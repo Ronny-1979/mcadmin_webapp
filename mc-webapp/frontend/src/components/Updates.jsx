@@ -71,7 +71,7 @@ export default function Updates() {
 
   async function startMcUpdate() {
     setMcUpdating(true); setMcLog('Starte Update…\n');
-    const r = await post('/api/updates/mc/start');
+    const r = await post('/api/updates/mc/start', { version: mc.available || '' });
     if (!r?.success) { toast(r?.error || 'Fehler', 'error'); setMcUpdating(false); return; }
     toast('MC-Update gestartet', 'success');
     const iv = setInterval(async () => {

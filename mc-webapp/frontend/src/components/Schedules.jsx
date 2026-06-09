@@ -136,8 +136,17 @@ export default function Schedules() {
         </div>
       </div>
 
-      <div style={{ marginTop:16, fontSize:12, color:'var(--text2)' }}>
-        Hinweis: Zeitpläne werden vom PHP-Cron-Job (cron.php) ausgeführt. Dieser muss als Systemcron eingerichtet sein.
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="card-title">Manuelle Aktionen</div>
+        <button className="btn btn-ghost" onClick={async () => {
+          const r = await post('/api/updates/check-now');
+          toast(r?.success ? (r.message || 'Update-Check abgeschlossen') : (r?.error || 'Fehler'), r?.success ? 'success' : 'error');
+        }}>
+          <Clock size={14} /> Jetzt Update-Check ausführen
+        </button>
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text2)' }}>
+          Hinweis: Zeitpläne werden vom PHP-Cron-Job (cron.php) ausgeführt. Dieser muss als Systemcron eingerichtet sein.
+        </div>
       </div>
     </div>
   );
