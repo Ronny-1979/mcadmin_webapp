@@ -157,8 +157,13 @@ install_webapp() {
     # JWT-Secret generieren falls noch Default
     local CONFIG="${WEBAPP_DIR}/backend/config.js"
     if grep -q "mc-webapp-secret-bitte-aendern" "$CONFIG" 2>/dev/null; then
-        local NEW_SECRET; NEW_SECRET=$(node -e "require('crypto').randomBytes(32).toString('hex')" 2>/dev/null || openssl rand -hex 64 | cut -c1-64)
-        sed -i "s/mc-webapp-secret-bitte-aendern/${NEW_SECRET}/" "$CONFIG"
+        local NEW_SECRET; NEW_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" 2>/dev/null || openssl rand -hex 32)
+        NEW_SECRET="${NEW_SECRET//[$'\t\r\n ']}"  # Whitespace entfernen
+        if [[ -n "$NEW_SECRET" ]]; then
+            sed -i "s/mc-webapp-secret-bitte-aendern/${NEW_SECRET}/" "$CONFIG"
+        else
+            warn "JWT-Secret konnte nicht generiert werden — Default bleibt erhalten"
+        fi
         ok "JWT-Secret generiert"
     fi
 
