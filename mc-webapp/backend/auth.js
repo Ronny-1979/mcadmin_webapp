@@ -24,7 +24,9 @@ export async function verifyCredentials(user, pass) {
   // Wenn kein Hash gespeichert → Default-Passwort prüfen
   if (!storedHash) return pass === config.defaultPass;
 
-  return await bcrypt.compare(pass, storedHash);
+  // PHP generiert $2y$-Hashes, Node.js bcrypt erwartet $2b$ (algorithmisch identisch)
+  const normalizedHash = storedHash.replace(/^\$2y\$/, '$2b$');
+  return await bcrypt.compare(pass, normalizedHash);
 }
 
 // Erstellt einen JWT-Token
