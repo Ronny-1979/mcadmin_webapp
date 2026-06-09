@@ -1,0 +1,7 @@
+# /etc/sudoers.d/mc-webapp
+# Erlaubt dem Web-Panel systemctl für den Minecraft-Service aufzurufen
+# Eintragen mit: sudo visudo -f /etc/sudoers.d/mc-webapp
+
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start minecraft-bedrock
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop minecraft-bedrock
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart minecraft-bedrock
