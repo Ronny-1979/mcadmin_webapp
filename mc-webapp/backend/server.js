@@ -324,6 +324,13 @@ app.post('/api/worlds/:name/packs/remove', requireAuth, (req, res) => {
   res.json(mc.removePackFromWorld(req.params.name, uuid, type));
 });
 
+// ── Welt-Experimente ─────────────────────────────────────────
+app.get('/api/worlds/:name/experiments', requireAuth, (req, res) =>
+  res.json(mc.getWorldExperiments(req.params.name)));
+
+app.post('/api/worlds/:name/experiments', requireAuth, (req, res) =>
+  res.json(mc.setWorldExperiments(req.params.name, req.body)));
+
 // ── SPA-Fallback ──────────────────────────────────────────────
 app.get('*', (req, res) => {
   const idx = path.join(frontendDist, 'index.html');

@@ -662,6 +662,197 @@ export function savePanelSettings(data) {
   return { success: true };
 }
 
+// ── Welt-Experimente (NBT level.dat) ─────────────────────────
+
+const KNOWN_EXPERIMENTS = [
+  'beta_apis','caves_and_cliffs','upcoming_creator_features',
+  'holiday_creator_features','vanilla_experiments',
+  'experimental_molang_features','gametest','data_driven_biomes',
+];
+
+const PY_READ_EXPERIMENTS = `
+import sys, struct, json
+
+def read_tag(data, pos):
+    tag_type = data[pos]; pos += 1
+    if tag_type == 0: return None, pos, None
+    name_len = struct.unpack_from('<H', data, pos)[0]; pos += 2
+    name = data[pos:pos+name_len].decode('utf-8', errors='replace'); pos += name_len
+    val, pos = read_payload(data, pos, tag_type)
+    return (name, tag_type, val), pos, name
+
+def read_payload(data, pos, tag_type):
+    if tag_type == 1: v=struct.unpack_from('<b',data,pos)[0]; return v, pos+1
+    if tag_type == 2: v=struct.unpack_from('<h',data,pos)[0]; return v, pos+2
+    if tag_type == 3: v=struct.unpack_from('<i',data,pos)[0]; return v, pos+4
+    if tag_type == 4: v=struct.unpack_from('<q',data,pos)[0]; return v, pos+8
+    if tag_type == 5: v=struct.unpack_from('<f',data,pos)[0]; return v, pos+4
+    if tag_type == 6: v=struct.unpack_from('<d',data,pos)[0]; return v, pos+8
+    if tag_type == 7:
+        l=struct.unpack_from('<i',data,pos)[0]; pos+=4; return data[pos:pos+l], pos+l
+    if tag_type == 8:
+        l=struct.unpack_from('<H',data,pos)[0]; pos+=2; return data[pos:pos+l].decode('utf-8','replace'), pos+l
+    if tag_type == 9:
+        elem_type=data[pos]; pos+=1; count=struct.unpack_from('<i',data,pos)[0]; pos+=4
+        items=[]
+        for _ in range(count): v,pos=read_payload(data,pos,elem_type); items.append(v)
+        return items, pos
+    if tag_type == 10:
+        children={}
+        while True:
+            tag,pos,name=read_tag(data,pos)
+            if tag is None: break
+            children[name]=(tag[1],tag[2])
+        return children, pos
+    if tag_type == 11:
+        l=struct.unpack_from('<i',data,pos)[0]; pos+=4
+        return [struct.unpack_from('<i',data,pos+i*4)[0] for i in range(l)], pos+l*4
+    if tag_type == 12:
+        l=struct.unpack_from('<i',data,pos)[0]; pos+=4
+        return [struct.unpack_from('<q',data,pos+i*8)[0] for i in range(l)], pos+l*8
+    return None, pos
+
+path = sys.argv[1]
+with open(path,'rb') as f: data=f.read()
+pos=8  # skip 8-byte header
+root,_,_=read_tag(data,pos)
+root_val=root[2] if root else {}
+exp={}
+if 'experiments' in root_val:
+    ec=root_val['experiments'][1]
+    if ec==10:
+        edata=root_val['experiments'][1]
+        edata=root_val['experiments']
+        if edata[0]==10:
+            for k,(t,v) in edata[1].items(): exp[k]=bool(v)
+print(json.dumps(exp))
+`;
+
+const PY_WRITE_EXPERIMENTS = `
+import sys, struct, json
+
+def read_tag(data, pos):
+    tag_type = data[pos]; pos += 1
+    if tag_type == 0: return None, pos, None
+    name_len = struct.unpack_from('<H', data, pos)[0]; pos += 2
+    name = data[pos:pos+name_len].decode('utf-8', errors='replace'); pos += name_len
+    val, pos = read_payload(data, pos, tag_type)
+    return (name, tag_type, val), pos, name
+
+def read_payload(data, pos, tag_type):
+    if tag_type == 1: v=struct.unpack_from('<b',data,pos)[0]; return v, pos+1
+    if tag_type == 2: v=struct.unpack_from('<h',data,pos)[0]; return v, pos+2
+    if tag_type == 3: v=struct.unpack_from('<i',data,pos)[0]; return v, pos+4
+    if tag_type == 4: v=struct.unpack_from('<q',data,pos)[0]; return v, pos+8
+    if tag_type == 5: v=struct.unpack_from('<f',data,pos)[0]; return v, pos+4
+    if tag_type == 6: v=struct.unpack_from('<d',data,pos)[0]; return v, pos+8
+    if tag_type == 7:
+        l=struct.unpack_from('<i',data,pos)[0]; pos+=4; return data[pos:pos+l], pos+l
+    if tag_type == 8:
+        l=struct.unpack_from('<H',data,pos)[0]; pos+=2; return data[pos:pos+l].decode('utf-8','replace'), pos+l
+    if tag_type == 9:
+        elem_type=data[pos]; pos+=1; count=struct.unpack_from('<i',data,pos)[0]; pos+=4
+        items=[]
+        for _ in range(count): v,pos=read_payload(data,pos,elem_type); items.append(v)
+        return items, pos
+    if tag_type == 10:
+        children={}
+        while True:
+            tag,pos,name=read_tag(data,pos)
+            if tag is None: break
+            children[name]=(tag[1],tag[2])
+        return children, pos
+    if tag_type == 11:
+        l=struct.unpack_from('<i',data,pos)[0]; pos+=4
+        return [struct.unpack_from('<i',data,pos+i*4)[0] for i in range(l)], pos+l*4
+    if tag_type == 12:
+        l=struct.unpack_from('<i',data,pos)[0]; pos+=4
+        return [struct.unpack_from('<q',data,pos+i*8)[0] for i in range(l)], pos+l*8
+    return None, pos
+
+def encode_tag(name, tag_type, val):
+    nb = name.encode('utf-8')
+    return bytes([tag_type]) + struct.pack('<H', len(nb)) + nb + encode_payload(tag_type, val)
+
+def encode_payload(tag_type, val):
+    if tag_type == 1: return struct.pack('<b', int(val))
+    if tag_type == 2: return struct.pack('<h', int(val))
+    if tag_type == 3: return struct.pack('<i', int(val))
+    if tag_type == 4: return struct.pack('<q', int(val))
+    if tag_type == 5: return struct.pack('<f', float(val))
+    if tag_type == 6: return struct.pack('<d', float(val))
+    if tag_type == 7: return struct.pack('<i', len(val)) + val
+    if tag_type == 8:
+        s = val.encode('utf-8'); return struct.pack('<H', len(s)) + s
+    if tag_type == 9:
+        et=val[0] if val else 1; items=val[1] if isinstance(val,tuple) else val
+        r=bytes([et])+struct.pack('<i',len(items))
+        for v in items: r+=encode_payload(et,v)
+        return r
+    if tag_type == 10:
+        r=b''
+        for k,(t,v) in val.items(): r+=encode_tag(k,t,v)
+        return r+b'\\x00'
+    if tag_type == 11:
+        return struct.pack('<i',len(val))+b''.join(struct.pack('<i',v) for v in val)
+    if tag_type == 12:
+        return struct.pack('<i',len(val))+b''.join(struct.pack('<q',v) for v in val)
+    return b''
+
+path, exps_json = sys.argv[1], sys.argv[2]
+new_exps = json.loads(exps_json)
+
+with open(path,'rb') as f: data=f.read()
+header=data[:8]
+pos=8
+root,_,_=read_tag(data,pos)
+if not root: sys.exit(1)
+root_name, root_type, root_val = root
+
+if 'experiments' in root_val:
+    old_exp = root_val['experiments'][1] if root_val['experiments'][0]==10 else {}
+    for k,v in old_exp.items(): new_exps.setdefault(k, bool(v))
+
+root_val['experiments'] = (10, {k:(1,int(bool(v))) for k,v in new_exps.items()})
+
+new_data = header + encode_tag(root_name, root_type, root_val)
+tmp = path + '.tmp'
+with open(tmp,'wb') as f: f.write(new_data)
+import os; os.replace(tmp, path)
+print('ok')
+`;
+
+export function getWorldExperiments(worldName) {
+  const levelDat = path.join(mc.worldsDir, worldName, 'level.dat');
+  if (!fs.existsSync(levelDat)) return { success: false, error: 'level.dat nicht gefunden' };
+  const tmpPy = '/tmp/mc_read_exp.py';
+  try {
+    fs.writeFileSync(tmpPy, PY_READ_EXPERIMENTS);
+    const out = execSync(`python3 "${tmpPy}" "${levelDat}"`, { encoding: 'utf8', timeout: 10000 }).trim();
+    const raw = JSON.parse(out);
+    const result = {};
+    for (const k of KNOWN_EXPERIMENTS) result[k] = !!raw[k];
+    return { success: true, experiments: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+export function setWorldExperiments(worldName, experiments) {
+  const levelDat = path.join(mc.worldsDir, worldName, 'level.dat');
+  if (!fs.existsSync(levelDat)) return { success: false, error: 'level.dat nicht gefunden' };
+  const tmpPy = '/tmp/mc_write_exp.py';
+  try {
+    fs.writeFileSync(tmpPy, PY_WRITE_EXPERIMENTS);
+    const expsArg = JSON.stringify(experiments);
+    execSync(`python3 "${tmpPy}" "${levelDat}" '${expsArg.replace(/'/g, "'\\''")}'`, { encoding: 'utf8', timeout: 10000 });
+    const warning = isRunning() ? 'Server läuft — bitte neu starten, damit die Experimente wirksam werden.' : undefined;
+    return { success: true, warning };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 // ── MC-Version prüfen (von Mojang) ───────────────────────────
 
 const MOJANG_URL    = 'https://net-secondary.web.minecraft-services.net/api/v1.0/download/links';

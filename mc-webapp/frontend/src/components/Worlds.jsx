@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Globe, Trash2, UploadCloud, CheckCircle, Plus, Edit2, Settings, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { Globe, Trash2, UploadCloud, CheckCircle, Plus, Edit2, Settings, ChevronDown, ChevronUp, AlertTriangle, FlaskConical } from 'lucide-react';
 import { get, post, del, upload } from '../utils.js';
 import { useToast } from '../useToast.jsx';
 
@@ -30,6 +30,9 @@ export default function Worlds() {
   const [create, setCreate]         = useState({ name:'', gamemode:'survival', difficulty:'normal', seed:'' });
   const [worldProps, setWorldProps] = useState({});
   const [uploadResult, setUploadResult] = useState(null);
+  const [expTarget, setExpTarget]       = useState(null);
+  const [experiments, setExperiments]   = useState({});
+  const [expWarning, setExpWarning]     = useState('');
   const fileRef = useRef();
   const { toast, ToastContainer } = useToast();
 
@@ -96,6 +99,24 @@ export default function Worlds() {
     const r = await post(`/api/worlds/${encodeURIComponent(propsTarget)}/properties`, worldProps);
     toast(r?.success ? 'Eigenschaften gespeichert' : (r?.error || 'Fehler'), r?.success ? 'success' : 'error');
     if (r?.success) setPropsTarget(null);
+  }
+
+  async function openExp(worldName) {
+    setExpTarget(worldName);
+    setExpWarning('');
+    const r = await get(`/api/worlds/${encodeURIComponent(worldName)}/experiments`);
+    setExperiments(r?.experiments || {});
+  }
+
+  async function saveExp() {
+    const r = await post(`/api/worlds/${encodeURIComponent(expTarget)}/experiments`, experiments);
+    if (r?.success) {
+      toast(r.warning ? `Gespeichert — ${r.warning}` : 'Experimente gespeichert', r.warning ? 'info' : 'success');
+      if (r.warning) setExpWarning(r.warning);
+      else setExpTarget(null);
+    } else {
+      toast(r?.error || 'Fehler', 'error');
+    }
   }
 
   function onDrop(e) {
@@ -186,6 +207,9 @@ export default function Worlds() {
                         <button className="btn btn-ghost btn-sm" title="Eigenschaften" onClick={() => openProps(w.name)}>
                           <Settings size={12} />
                         </button>
+                        <button className="btn btn-ghost btn-sm" title="Experimente" onClick={() => openExp(w.name)}>
+                          <FlaskConical size={12} />
+                        </button>
                         <button className="btn btn-red btn-sm" onClick={() => deleteWorld(w.name)}>
                           <Trash2 size={12} />
                         </button>
@@ -231,6 +255,43 @@ export default function Worlds() {
           <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:12 }}>
             <button className="btn btn-ghost" onClick={() => setRenameTarget(null)}>Abbrechen</button>
             <button className="btn btn-green" onClick={renameWorld}>Umbenennen</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Experiments Modal */}
+      {expTarget && (
+        <Modal title={`Experimente: ${expTarget}`} onClose={() => setExpTarget(null)}>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {expWarning && (
+              <div style={{ background:'var(--yellow-bg,#2a2000)', color:'var(--yellow)', padding:'8px 12px', borderRadius:6, fontSize:12 }}>
+                <AlertTriangle size={12} style={{ verticalAlign:'middle', marginRight:6 }} />{expWarning}
+              </div>
+            )}
+            {[
+              ['beta_apis',                   'Beta APIs (Scripting)'],
+              ['caves_and_cliffs',            'Caves & Cliffs'],
+              ['upcoming_creator_features',   'Upcoming Creator Features'],
+              ['holiday_creator_features',    'Holiday Creator Features'],
+              ['vanilla_experiments',         'Vanilla Experiments'],
+              ['experimental_molang_features','Experimental Molang'],
+              ['gametest',                    'GameTest Framework'],
+              ['data_driven_biomes',          'Data Driven Biomes'],
+            ].map(([key, label]) => (
+              <label key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }}>
+                <span style={{ fontSize:13 }}>{label}</span>
+                <select value={experiments[key] ? '1' : '0'}
+                  onChange={e => setExperiments(ex => ({ ...ex, [key]: e.target.value === '1' }))}
+                  style={{ width:90 }}>
+                  <option value="0">Aus</option>
+                  <option value="1">An</option>
+                </select>
+              </label>
+            ))}
+          </div>
+          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
+            <button className="btn btn-ghost" onClick={() => setExpTarget(null)}>Abbrechen</button>
+            <button className="btn btn-green" onClick={saveExp}>Speichern</button>
           </div>
         </Modal>
       )}
