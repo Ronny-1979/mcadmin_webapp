@@ -895,3 +895,46 @@ export async function checkMcVersion(force = false) {
     return { current, latest:'unbekannt', update_available:false, error:e.message };
   }
 }
+
+// ── Panel-Version prüfen (GitHub mcadmin_webapp) ──────────────
+
+const PANEL_GITHUB_API   = 'https://api.github.com/repos/Ronny-1979/mcadmin_webapp/commits/main';
+const PANEL_VERSION_CACHE = '/tmp/mc_webapp_panel_version_cache.json';
+
+export async function checkPanelVersion(force = false) {
+  // Lokale Version: git SHA im Webapp-Verzeichnis
+  const repoDir = path.resolve(path.join(path.dirname(new URL(import.meta.url).pathname), '../../'));
+  const localSha = run(`git -C "${repoDir}" rev-parse --short HEAD 2>/dev/null`) || 'unbekannt';
+
+  if (!force && fs.existsSync(PANEL_VERSION_CACHE)) {
+    try {
+      const c = JSON.parse(fs.readFileSync(PANEL_VERSION_CACHE, 'utf8'));
+      if ((Date.now()/1000 - (c.ts||0)) < 300) {
+        const update_available = c.sha !== 'unbekannt' && localSha !== 'unbekannt' && c.sha !== localSha;
+        return { installed: localSha, available: c.sha, update_available };
+      }
+    } catch {}
+  }
+
+  try {
+    const { default: https } = await import('https');
+    const data = await new Promise((resolve, reject) => {
+      const req = https.get(PANEL_GITHUB_API, {
+        headers: { 'User-Agent': 'mc-webapp/1.0', 'Accept': 'application/vnd.github.v3+json' },
+        timeout: 10000,
+      }, res => {
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e){ reject(e); } });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => req.destroy(new Error('Timeout')));
+    });
+    const remoteSha = (data?.sha || '').slice(0, 7) || 'unbekannt';
+    fs.writeFileSync(PANEL_VERSION_CACHE, JSON.stringify({ sha: remoteSha, ts: Math.floor(Date.now()/1000) }));
+    const update_available = remoteSha !== 'unbekannt' && localSha !== 'unbekannt' && remoteSha !== localSha;
+    return { installed: localSha, available: remoteSha, update_available };
+  } catch (e) {
+    return { installed: localSha, available: 'unbekannt', update_available: false, error: e.message };
+  }
+}

@@ -236,8 +236,7 @@ app.get('/api/updates/mc/status', requireAuth, async (req, res) => {
 
 app.get('/api/updates/panel', requireAuth, async (req, res) => {
   try {
-    const r = await phpAction('check_panel_update', { force: req.query.force || '0' });
-    res.json({ installed: r.current, available: r.latest, update_available: r.update_available, ...r });
+    res.json(await mc.checkPanelVersion(!!req.query.force));
   } catch (e) {
     res.json({ installed: 'unbekannt', available: 'unbekannt', update_available: false, error: e.message });
   }
