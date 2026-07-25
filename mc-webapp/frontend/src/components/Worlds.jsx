@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { CheckCircle, Edit2, Globe, MessageSquare, PackagePlus, Plus, Save, Settings, Trash2, UploadCloud } from 'lucide-react';
+import { CheckCircle, Edit2, FlaskConical, Globe, MessageSquare, PackagePlus, Plus, Save, Settings, Trash2, UploadCloud } from 'lucide-react';
 import { get, post, del, upload } from '../utils.js';
 import { useToast } from '../useToast.jsx';
 
@@ -34,6 +34,9 @@ export default function Worlds() {
   const [welcomeTarget, setWelcomeTarget] = useState(null);
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [welcomeLoading, setWelcomeLoading] = useState(false);
+  const [expTarget, setExpTarget]         = useState(null);
+  const [experiments, setExperiments]     = useState({});
+  const [expWarning, setExpWarning]       = useState('');
 
   const worldFileRef = useRef(null);
   const packFileRef = useRef(null);
@@ -143,6 +146,23 @@ export default function Worlds() {
     toast(r?.success ? 'Willkommensnachricht gespeichert' : (r?.error || 'Fehler'), r?.success ? 'success' : 'error');
   }
 
+  async function openExp(worldName) {
+    setExpTarget(worldName);
+    setExpWarning('');
+    const r = await get(`/api/worlds/${encodeURIComponent(worldName)}/experiments`);
+    setExperiments(r?.experiments || {});
+  }
+
+  async function saveExp() {
+    const r = await post(`/api/worlds/${encodeURIComponent(expTarget)}/experiments`, experiments);
+    if (r?.success) {
+      toast(r.warning ? `Gespeichert — ${r.warning}` : 'Experimente gespeichert', r.warning ? 'info' : 'success');
+      if (r.warning) setExpWarning(r.warning); else setExpTarget(null);
+    } else {
+      toast(r?.error || 'Fehler', 'error');
+    }
+  }
+
   function previewWelcome() {
     return welcomeMessage
       .replace(/\{player\}/g, 'Steve')
@@ -208,6 +228,7 @@ export default function Worlds() {
                             {!isActive && <button className="btn btn-green btn-sm" onClick={() => switchWorld(w.name)}><Globe size={12} /> Aktivieren</button>}
                             {!isActive && <button className="btn btn-ghost btn-sm" title="Pack hochladen" onClick={() => { setPackTarget(w.name); setTimeout(() => packFileRef.current?.click(), 50); }}><PackagePlus size={12} /> Pack</button>}
                             <button className="btn btn-ghost btn-sm" title="Willkommen" onClick={() => openWelcome(w.name)}><MessageSquare size={12} /> Willkommen</button>
+                            <button className="btn btn-ghost btn-sm" title="Experimente" onClick={() => openExp(w.name)}><FlaskConical size={12} /></button>
                             <button className="btn btn-ghost btn-sm" title="Eigenschaften" onClick={() => openProps(w.name)}><Settings size={12} /></button>
                             <button className="btn btn-ghost btn-sm" title="Umbenennen" onClick={() => { setRenameTarget(w.name); setNewName(w.name); }}><Edit2 size={12} /></button>
                             <button className="btn btn-red btn-sm" title="Löschen" onClick={() => deleteWorld(w.name)}><Trash2 size={12} /></button>
@@ -274,6 +295,42 @@ export default function Worlds() {
           <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:12 }}>
             <button className="btn btn-ghost" onClick={() => setRenameTarget(null)}>Abbrechen</button>
             <button className="btn btn-green" onClick={renameWorld}>Umbenennen</button>
+          </div>
+        </Modal>
+      )}
+
+      {expTarget && (
+        <Modal title={`Experimente: ${expTarget}`} onClose={() => setExpTarget(null)}>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {expWarning && (
+              <div style={{ background:'rgba(255,200,0,.12)', color:'var(--yellow,#f0b429)', padding:'8px 12px', borderRadius:6, fontSize:12 }}>
+                ⚠ {expWarning}
+              </div>
+            )}
+            {[
+              ['beta_apis',                    'Beta APIs (Scripting)'],
+              ['caves_and_cliffs',             'Caves & Cliffs'],
+              ['upcoming_creator_features',    'Upcoming Creator Features'],
+              ['holiday_creator_features',     'Holiday Creator Features'],
+              ['vanilla_experiments',          'Vanilla Experiments'],
+              ['experimental_molang_features', 'Experimental Molang'],
+              ['gametest',                     'GameTest Framework'],
+              ['data_driven_biomes',           'Data Driven Biomes'],
+            ].map(([key, label]) => (
+              <label key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }}>
+                <span style={{ fontSize:13 }}>{label}</span>
+                <select value={experiments[key] ? '1' : '0'}
+                  onChange={e => setExperiments(ex => ({ ...ex, [key]: e.target.value === '1' }))}
+                  style={{ width:90 }}>
+                  <option value="0">Aus</option>
+                  <option value="1">An</option>
+                </select>
+              </label>
+            ))}
+          </div>
+          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
+            <button className="btn btn-ghost" onClick={() => setExpTarget(null)}>Abbrechen</button>
+            <button className="btn btn-green" onClick={saveExp}><Save size={14} /> Speichern</button>
           </div>
         </Modal>
       )}
